@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
-import OpenJobs from "./OpenJobs"; // Assuming you have an OpenJobs component
 import EmployeeService from "../services/EmployeeService"; // Adjust this to your job service
+import './OpenJob.css';
+import JobBox from "./JobBox";
 
 const OpenJobList = () => {
     const [loading, setLoading] = useState(true);
@@ -9,6 +10,42 @@ const OpenJobList = () => {
     const [filteredJobDetails, setFilteredJobDetails] = useState([]);
     const [noMatches, setNoMatches] = useState(false);
     const [employee, setEmployee] = useState([]);
+    const [expandedJobIds, setExpandedJobIds] = useState([]);
+
+    const [currentPage, setCurrentPage] = useState(1);
+const jobsPerPage = 9;
+const indexOfLastJob = currentPage * jobsPerPage;
+const indexOfFirstJob = indexOfLastJob - jobsPerPage;
+const currentJobs = filteredJobDetails.slice(indexOfFirstJob, indexOfLastJob);
+
+const totalPages = Math.ceil(filteredJobDetails.length / jobsPerPage);
+const renderPaginationButtons = () => {
+    const pageNumbers = [];
+  
+    for (let i = 1; i <= totalPages; i++) {
+      pageNumbers.push(
+        <button
+          key={i}
+          onClick={() => setCurrentPage(i)}
+          className={currentPage === i ? "active" : ""}
+        >
+          {i}
+        </button>
+      );
+    }
+    return (
+        <div className="pagination" style={{marginBottom:"200px"}}>
+          <button onClick={() => setCurrentPage(currentPage - 1)} disabled={currentPage === 1}>
+            Previous
+          </button>
+          {pageNumbers}
+          <button onClick={() => setCurrentPage(currentPage + 1)} disabled={currentPage === totalPages}>
+            Next
+          </button>
+        </div>
+      );
+    };
+
 
     useEffect(() => {
         const fetchData = async () => {
@@ -50,69 +87,79 @@ const OpenJobList = () => {
     const handleSearch = (e) => {
         setSearchTerm(e.target.value);
     };
+    // Function to toggle expansion for a specific job
+    const toggleExpansion = (jobId) => {
+        if (expandedJobIds.includes(jobId)) {
+            // If already expanded, collapse it
+            setExpandedJobIds(expandedJobIds.filter((id) => id !== jobId));
+        } else {
+            // If not expanded, expand it
+            setExpandedJobIds([...expandedJobIds, jobId]);
+        }
+    };
+
+
 
     return (
-        <div >
-            <div >
-                <div className="container mx-auto my-8">
-                    <h2 style={{ paddingLeft: "350px", paddingBottom: "25px", paddingTop: "25px", fontSize: "40px", fontWeight: "bold", textShadow: "2px 2px 4px rgba(0, 0, 0, 0.2)" }}>Welcome Back, {employee.fullName}</h2>
-                    <h2 style={{ paddingLeft: "400px", fontSize: "25px", textShadow: "1px 1px 2px rgba(0, 0, 0, 0.2)" }}>Find And Apply For Your Jobs Here !</h2>
-                    <div className="h-12" style={{ paddingLeft: "430px", paddingBottom: "80px", paddingTop: "25px" }}>
+        
+        <div>
+            <div  style={{    border:"1px solid #e0e0e0"}}>
+                <div className="header">
+                <img src="/axis-logo.jpg" alt="logo" style={{height:"70px"}} />
 
+                    <span className="colored-text">&nbsp;&nbsp;Axis Bank&nbsp;</span>
+                    <span className="bold-text">Employee Dashboard | </span>
+                    <span className="colored-text">&nbsp;DilSe Open</span>
+                </div>
+                <div className="container mx-auto my-8" >
+                    <span className="center-text">Welcome Back,</span>
+                    <span className="colored-text" style={{ fontSize: "28px" }}>{employee.fullName}</span>
+                    <div className="search-bar" >
                         <input
                             type="text"
                             placeholder="Search by Job Title or Location"
                             value={searchTerm}
                             onChange={handleSearch}
-                            style={{
-                                width: "400px", fontSize: "20px",
-                                padding: "10px",
-                                borderRadius: "15px",
-                                border: "1px solid #ccc",
-                                boxShadow: "0 4px 6px rgba(0,0,0,0.1)"
-                            }}
+                            className="input-search-box"
                         />
                     </div>
-                    <div className="flex shadow border-b" >
-
-                        <table className="min-w-full" style={{ borderCollapse: "collapse", boxShadow: "12px 12px 12px 12px rgba(0,0,0,0.1)" }}>
-                            <thead style={{ borderCollapse: "separate", boxShadow: "1px 1px 1px 1px rgba(0,0,0,0.1)" }}>
-                                <div className="flex shadow border-b" style={{ marginTop: "30px", marginBottom: "20px" }}>
-                                    <th style={{ paddingLeft: "25px", paddingRight: "50px", fontSize: "22px" }}>Job Title</th>
-                                    <th style={{ paddingRight: "30px", fontSize: "22px" }}>Job Location</th>
-                                    <th style={{ paddingRight: "5px", fontSize: "22px" }}>Description</th>
-                                    <th style={{ paddingLeft: "50px", fontSize: "22px" }}>Department</th>
-                                    <th style={{ paddingLeft: "30px", fontSize: "22px" }}>Qualification</th>
-                                    <th style={{ paddingLeft: "50px", fontSize: "22px", marginBottom: "90px" }}>Application DeadLine</th>
-
-                                </div>
-                            </thead>
-
-                            {!loading && (
-                                <tbody className="bg-white">
-                                    <div className="job-grid" style={{ marginBottom: "90px" }}>
-                                        {filteredJobDetails.length === 0 ? (
-                                            noMatches ? (
-                                                <tr>
-                                                    <td colSpan="6" style={{ textAlign: "center", padding: "25px", fontSize: "30px", color: "maroon" }}>
-                                                        No matches to your search
-                                                    </td>
-                                                </tr>
-                                            ) : null
-                                        ) : (
-                                            filteredJobDetails.map((jobDetail) => (
-                                                <OpenJobs jobDetails={jobDetail} key={jobDetail.jobId} />
-                                            ))
-                                        )}
+                    <div >
+                    <div className="grid grid-background"  >
+                        {!loading &&
+                            (currentJobs.length === 0 ? (
+                                noMatches ? (
+                                    <div className="no-match" >
+                                        No matches to your search
                                     </div>
-                                </tbody>
-                            )}
-                        </table>
+                                ) : null
+                            ) : (
+                                currentJobs.map((jobDetail) => (
+                                    <div
+                                        className={`job-box ${expandedJobIds.includes(jobDetail.jobId) ? "expanded" : ""
+                                            }`}
+                                        key={jobDetail.jobId}
+                                        onClick={() => toggleExpansion(jobDetail.jobId)}
+                                    >
+
+                                        <JobBox
+                                            jobDetails={jobDetail}
+
+                                        />
+                                        
+                                    </div>
+                                    
+                                ))
+                            ))}
+                            
+                    </div>
+                    {renderPaginationButtons()}
                     </div>
                 </div>
             </div>
         </div>
     );
 };
+
+
 
 export default OpenJobList;

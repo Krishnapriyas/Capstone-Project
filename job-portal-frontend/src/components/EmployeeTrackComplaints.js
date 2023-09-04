@@ -1,150 +1,325 @@
 import React, { useEffect, useState } from "react";
-import EmployeeService from "../services/EmployeeService"; // Adjust this to your job service
+import EmployeeService from "../services/EmployeeService";
 import { useNavigate } from "react-router-dom";
+import "./Complaint.css"; 
+import ComplaintPieChart from "./ComplaintPieChart";
 
 
 const EmployeeTrackComplaints = () => {
-    const [loading, setLoading] = useState(true);
-    const [complaints, setComplaints] = useState([]);
-    const [searchTerm, setSearchTerm] = useState("");
-    const [filteredComplaints, setFilteredComplaints] = useState([]);
-    const [noMatches, setNoMatches] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [complaints, setComplaints] = useState([]);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [filteredComplaints, setFilteredComplaints] = useState([]);
+  const [noMatches, setNoMatches] = useState(false);
+  const [complaintStatusFilter, setComplaintStatusFilter] = useState("ALL"); // Default filter
+  const [sortBy, setSortBy] = useState("complaintDate"); // Default sort by complaint date
+  const [sortOrder, setSortOrder] = useState("asc"); // Default ascending order
 
-    useEffect(() => {
-        const fetchData = async () => {
-            setLoading(true);
-            try {
-                const employeeId = localStorage.getItem('employeeId'); // Retrieve employee ID from local storage
-                console.log(employeeId);
-                const response = await EmployeeService.trackComplaints(employeeId);
-                console.log(response.data);
-                setComplaints(response.data);
-            } catch (error) {
-                setComplaints([]);
-                console.log(error);
-            }
-            setLoading(false);
-        };
-        fetchData();
-    }, []);
 
-    useEffect(() => {
-        const filterComplaints = () => {
-            if (complaints && searchTerm.trim() !== "") {
-                const filtered = complaints.filter(
-                    (complaint) =>
-                        (complaint.complaintStatus && complaint.complaintStatus.toLowerCase().includes(searchTerm.toLowerCase())) ||
-                        (complaint.subject && complaint.subject.toLowerCase().includes(searchTerm.toLowerCase()))
-                );
-                setFilteredComplaints(filtered);
-                setNoMatches(filtered.length === 0);
-            } else {
-                setFilteredComplaints(complaints);
-                setNoMatches(false);
-            }
-        };
-        filterComplaints();
-    }, [complaints, searchTerm]);
+  const navigate = useNavigate();
 
-    const handleSearch = (e) => {
-        setSearchTerm(e.target.value);
+  const handleSort = (sortField) => {
+    if (sortField === sortBy) {
+      // Toggle between ascending and descending order
+      setSortOrder(sortOrder === "asc" ? "desc" : "asc");
+    } else {
+      // Set the new sort field and default to ascending order
+      setSortBy(sortField);
+      setSortOrder("asc");
+    }
+  };
+
+   // Function to sort complaints
+   const sortComplaints = (complaintsToSort) => {
+    return complaintsToSort.sort((a, b) => {
+      const aValue = a[sortBy];
+      const bValue = b[sortBy];
+      // Sort based on the selected field and order
+      if (sortOrder === "asc") {
+        return aValue.localeCompare(bValue);
+      } else {
+        return bValue.localeCompare(aValue);
+      }
+    });
+  };
+
+  // Function to handle sorting and filtering
+  const filterAndSortComplaints = () => {
+    let filtered = complaints;
+
+    if (complaintStatusFilter !== "ALL") {
+      filtered = complaints.filter(
+        (complaint) => complaint.complaintStatus === complaintStatusFilter
+      );
+    }
+    if (searchTerm.trim() !== "") {
+      filtered = filtered.filter(
+        (complaint) =>
+          complaint.complaintStatus &&
+          complaint.complaintStatus.toLowerCase().includes(searchTerm.toLowerCase())
+      );
+    }
+
+    // Sort the filtered complaints
+    const sortedComplaints = sortComplaints(filtered);
+
+    setFilteredComplaints(sortedComplaints);
+    setNoMatches(sortedComplaints.length === 0);
+  };
+
+  const [complaintData, setComplaintData] = useState({
+    OPENED: 0,
+    UNDER_REVIEW: 0,
+    RESOLVED: 0,
+    CLOSED: 0,
+  });
+
+
+
+  useEffect(() => {
+    const fetchData = async () => {
+      setLoading(true);
+      try {
+        const employeeId = localStorage.getItem("employeeId");
+        const response = await EmployeeService.trackComplaints(employeeId);
+
+        const complaints = response.data;
+
+      // Count complaints in each status
+      const data = {
+        OPENED: 0,
+        UNDER_REVIEW: 0,
+        RESOLVED: 0,
+        CLOSED: 0,
+      };
+
+      complaints.forEach((complaint) => {
+        data[complaint.complaintStatus]++;
+      });
+
+      setComplaintData(data);
+        setComplaints(response.data);
+      } catch (error) {
+        setComplaints([]);
+        console.log(error);
+      }
+      setLoading(false);
+    };
+    fetchData();
+  }, []);
+
+  useEffect(() => {
+    const filterComplaints = () => {
+      let filtered = complaints;
+
+      if (complaintStatusFilter !== "ALL") {
+        filtered = complaints.filter((complaint) => complaint.complaintStatus === complaintStatusFilter);
+      }
+
+      if (searchTerm.trim() !== "") {
+        filtered = filtered.filter(
+          (complaint) =>
+            (complaint.complaintStatus &&
+              complaint.complaintStatus.toLowerCase().includes(searchTerm.toLowerCase())) ||
+            (complaint.subject && complaint.subject.toLowerCase().includes(searchTerm.toLowerCase()))
+        );
+      }
+
+      setFilteredComplaints(filtered);
+      setNoMatches(filtered.length === 0);
     };
 
-    const navigate = useNavigate();
+    filterComplaints();
+  }, [complaints, searchTerm, complaintStatusFilter]);
 
-    const viewMore = (e, complaintId) => {
-        e.preventDefault();
-        navigate(`/complaint/viewMore/${complaintId}`);
-    };
+  const handleSearch = (e) => {
+    setSearchTerm(e.target.value);
+  };
 
-    return (
-        <div >
-            <div >
-                <div className="container mx-auto my-8" style={{ marginBottom: "200px" }}>
-                    <h2 style={{ paddingLeft: "430px", fontSize: "25px", textShadow: "1px 1px 2px rgba(0, 0, 0, 0.2)" }}>TRACK COMPLAINT STATUS</h2>
+  const viewMore = (e, complaintId) => {
+    e.preventDefault();
+    navigate(`/complaint/viewMore/${complaintId}`);
+  };
 
-                    <div className="h-12" style={{ paddingLeft: "400px", paddingBottom: "25px", paddingTop: "25px" }}>
+  const handleComplaintStatusFilterChange = (status) => {
+    setComplaintStatusFilter(status);
+  };
+  const [currentPage, setCurrentPage] = useState(1);
+  const [complaintsPerPage] = useState(10); // Number of complaints per page
 
-                        <input
-                            type="text"
-                            placeholder="Search by Complaint Status or Subject"
-                            value={searchTerm}
-                            onChange={handleSearch}
-                            style={{
-                                width: "400px", fontSize: "23px", borderRadius: "15px",
-                                border: "1px solid #ccc",
-                                boxShadow: "0 4px 6px rgba(0,0,0,0.5)", textAlign: "center", padding: "10px", marginBottom: "50px"
-                            }}
-                        />
-                    </div>
-                    <div className="flex shadow border-b" >
+  // Calculate the indexes of the complaints to display on the current page
+  const indexOfLastComplaint = currentPage * complaintsPerPage;
+  const indexOfFirstComplaint = indexOfLastComplaint - complaintsPerPage;
+  const sortedComplaints = sortComplaints(
+    filteredComplaints.slice(indexOfFirstComplaint, indexOfLastComplaint)
+  );
+  
+  // Function to change the current page
+  const paginate = (pageNumber) => {
+    setCurrentPage(pageNumber);
+  };
 
-                        <table className="min-w-full" style={{ borderCollapse: "collapse", boxShadow: "10px 10px 10px 12px rgba(0,0,0,0.1)", marginRight: "20px" }}>
-                            <thead>
-                                <div className="flex shadow border-b"   >
-                                    <th style={{ paddingLeft: "25px", paddingRight: "250px", fontSize: "20px", paddingBottom: "25px" }}>COMPALINT SUBJECT</th>
-                                    <th style={{ paddingRight: "250px", fontSize: "20px" }}>DATE </th>
-                                    <th style={{ paddingRight: "70px", fontSize: "20px" }}>COMPLAINT STATUS</th>
+  const renderComplaints = () => {
+    return sortedComplaints.map((complaint) => (
+      <tr key={complaint.complaintId}>
+        <td className="text-left px-6 py-4 whitespace-nowrap">
+          <div className="text-sm text-gray-500">{complaint.subject}</div>
+        </td>
+        <td className="text-left px-6 py-4 whitespace-nowrap">
+          <div className="text-sm text-gray-500">
+            {new Date(complaint.complaintDate).toLocaleDateString("en-GB", {
+              day: "2-digit",
+              month: "2-digit",
+              year: "2-digit",
+            })}{" "}
+            {new Date(complaint.complaintDate).toLocaleTimeString([], {
+              hour: "2-digit",
+              minute: "2-digit",
+            })}
+          </div>
+        </td>
+        <td className="text-left px-6 py-4 whitespace-nowrap">
+          <div className="text-sm text-gray-500">{complaint.complaintStatus}</div>
+        </td>
+        <td className="text-left px-6 py-4 whitespace-nowrap">
+          <button
+            className="text-white font-bold py-2 px-4 rounded view-more-button"
+            onClick={(e) => viewMore(e, complaint.complaintId)}
+          >
+            View More
+          </button>
+        </td>
+        
+      </tr>
+      
+    ));
+    
+  };
 
-                                </div>
-                            </thead>
+  return (
+    <div  style={{    border:"1px solid #e0e0e0"}}>
+    <div className="container"  >
+      <h2 className="header">TRACK COMPLAINT STATUS</h2>
 
-                            {!loading && (
-                                <tbody className="bg-white">
-                                    <div className="job-grid"  >
-                                        {filteredComplaints.length === 0 ? (
-                                            noMatches ? (
-                                                <tr>
-                                                    <td colSpan="6" style={{ textAlign: "center", padding: "25px", fontSize: "30px", color: "maroon" }}>
-                                                        No matches to your search
-                                                    </td>
-                                                </tr>
-                                            ) : null
-                                        ) : (
-                                            filteredComplaints.map((complaint) => (
-                                                <tr key={complaints.complaintId}>
-                                                    <td className="text-left px-6 py-4 whitespace-nowrap" style={{ paddingBottom: "25px", paddingLeft: "30px", fontSize: "20px" }}>
-                                                        <div className="text-sm text-gray-500">{complaint.subject}</div>
-                                                    </td>
-                                                    <td className="text-left px-6 py-4 whitespace-nowrap" style={{ paddingLeft: "200px", fontSize: "20px" }}>
-                                                        <div className="text-sm text-gray-500">
-                                                            {new Date(complaint.complaintDate).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: '2-digit' })}{" "}
-                                                            {new Date(complaint.complaintDate).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                                                        </div>
+      <div className="search-bar-complaints">
+        <input
+          type="text"
+          placeholder="Search by Complaint Status or Subject"
+          value={searchTerm}
+          onChange={handleSearch}
+          className="input-search-box"
+        />
 
+<ComplaintPieChart complaintData={complaintData} />
+       
+      </div>
+      
 
-                                                    </td>
-                                                    <td className="text-left px-6 py-4 whitespace-nowrap" style={{ paddingLeft: "200px", fontSize: "20px" }}>
-                                                        <div className="text-sm text-gray-500">{complaint.complaintStatus}</div>
-                                                    </td>
+      {/* Toggle buttons */}
+      <div className="toggle-buttons">
+        <button
+          className={`status-toggle ${complaintStatusFilter === "ALL" ? "active" : ""}`}
+          onClick={() => handleComplaintStatusFilterChange("ALL")}
+        >
+          ALL
+        </button>
+        <button
+          className={`status-toggle ${complaintStatusFilter === "OPENED" ? "active" : ""}`}
+          onClick={() => handleComplaintStatusFilterChange("OPENED")}
+        >
+          OPENED
+        </button>
+        <button
+          className={`status-toggle ${complaintStatusFilter === "UNDER_REVIEW" ? "active" : ""}`}
+          onClick={() => handleComplaintStatusFilterChange("UNDER_REVIEW")}
+        >
+          UNDER REVIEW
+        </button>
+        <button
+          className={`status-toggle ${complaintStatusFilter === "RESOLVED" ? "active" : ""}`}
+          onClick={() => handleComplaintStatusFilterChange("RESOLVED")}
+        >
+          RESOLVED
+        </button>
+        <button
+          className={`status-toggle ${complaintStatusFilter === "CLOSED" ? "active" : ""}`}
+          onClick={() => handleComplaintStatusFilterChange("CLOSED")}
+        >
+          CLOSED
+        </button>
+      </div>
+      {/*  sorting buttons */}
+      <button
+            className={`status-toggle ${
+              sortBy === "subject" ? "active" : ""
+            }`}
+            onClick={() => handleSort("subject")}
+          style={{marginLeft:"400px"}}>
+            Sort by Subject {sortBy === "subject" ? sortOrder === "asc" ? "↑" : "↓" : ""}
+          </button>
+          <button
+            className={`status-toggle ${
+              sortBy === "complaintDate" ? "active" : ""
+            }`}
+            onClick={() => handleSort("complaintDate")}
+          >
+            Sort by Date {sortBy === "complaintDate" ? sortOrder === "asc" ? "↑" : "↓" : ""}
+          </button>
+          <button
+            className={`status-toggle ${
+              sortBy === "complaintStatus" ? "active" : ""
+            }`}
+            onClick={() => handleSort("complaintStatus")}
+          >
+             Sort by Status {sortBy === "complaintStatus" ? sortOrder === "asc" ? "↑" : "↓" : ""}
+          </button>
+      
 
-                                                    <td className="text-left px-6 py-4 whitespace-nowrap" style={{ paddingLeft: "150px", fontSize: "20px" }}>
-                                                        <button
-                                                            className="text-white font-bold py-2 px-4 rounded" style={{
-                                                                backgroundColor: "#872746",
-                                                                borderRadius: "0.25rem",
-                                                                color: "white",
-                                                                fontWeight: "bold",
-                                                                padding: "0.5rem 1rem",
-                                                                marginRight: "25px"
-                                                            }}
-                                                            onClick={(e) => viewMore(e, complaint.complaintId)}
-                                                        >
-                                                            View More
-                                                        </button>
-                                                    </td>
-                                                </tr>
-                                            ))
-                                        )}
-                                    </div>
-                                </tbody>
-                            )}
-                        </table>
-                    </div>
-                </div>
-            </div>
-        </div>
-    );
+      <table className="complaint-table" >
+        <thead >
+          <tr >
+            <th>COMPLAINT SUBJECT</th>
+            <th>DATE</th>
+            <th>COMPLAINT STATUS</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody >
+          {noMatches ? (
+            <tr>
+              <td colSpan="3" className="no-matches-message">
+                No matches to your search
+              </td>
+            </tr>
+          ) : (
+            renderComplaints()
+          )}
+        </tbody>
+        <div className="pagination" style={{marginLeft:"500px",marginBottom:"20px"}}>
+          <ul>
+            {Array(Math.ceil(filteredComplaints.length / complaintsPerPage))
+              .fill()
+              .map((_, i) => (
+                <li
+                  key={i}
+                  className={`page-item ${currentPage === i + 1 ? "active" : ""}`}
+                >
+                  <button
+                    onClick={() => paginate(i + 1)}
+                    className="page-link"
+                  >
+                    {i + 1}
+                  </button>
+                </li>
+                 ))}
+                 </ul>
+               </div>
+        
+      </table>
+      
+    </div>
+    </div>
+  );
 };
 
 export default EmployeeTrackComplaints;

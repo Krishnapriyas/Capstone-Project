@@ -1,8 +1,8 @@
 import React from "react";
 import "./Navbar.css";
-import ProfileDropdown from "./ProfileDropdown";
+import ProfileDropdown from "../extra/ProfileDropdown";
 
-const Navbar = () => {
+const NavbarOne = () => {
   return (
     <>
       <nav className="main-nav">
@@ -44,4 +44,4 @@ const Navbar = () => {
   );
 };
 
-export default Navbar;
+export default NavbarOne;
